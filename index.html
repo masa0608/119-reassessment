@@ -44,11 +44,6 @@
         TEL_7119_TEXT: "#7119（救急安心センターの案内）",
       };
 
-      const nowHHMM = () => {
-        const d = new Date();
-        return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-      };
-
       const CAT_LABEL = {
         CALL_NOW:      { title: "① いま救急要請が必要な可能性が高い", color: "bg-red-600" },
         CALL_STRONGLY: { title: "② 救急要請を強く検討",             color: "bg-orange-500" },
@@ -166,7 +161,7 @@
         );
       };
 
-      // ====== 自分の症状：カテゴリ定義 ======
+      // ====== 自分の症状：カテゴリ定義（変更なし） ======
       const PRIORITY_ORDER = ["conscious", "stroke", "cardioresp", "trauma", "fever", "skin"];
       const SELF_SYMPTOMS = [
         {
@@ -269,60 +264,57 @@
         },
       ];
 
-      // ====== 他者観察フロー定義（順次質問型） ======
-      // 研究・ガイドライン出典（一般名）：AHA BLS/ILCOR、BE-FAST、Stop the Bleed、NICE NG232（頭部外傷）
+      // ====== 他者観察フロー（Yes=問題あり で統一、1画面1問） ======
+      // 研究・ガイドライン（一般名）：AHA BLS/ILCOR、BE-FAST、Stop the Bleed、NICE NG232
       const OTHER_STEPS = [
-        // Step1 安全
-        { id: "safe",  text: "周囲は安全ですか？（車道/火/煙/感電/水辺など危険がない）", type: "yesno",
-          onYes: null, onNo: "CALL_NOW" },
-        // 反応
-        { id: "resp",  text: "呼びかけや肩叩きに反応はありますか？", type: "yesno",
-          onYes: null, onNo: null /* 次へ：呼吸 */ },
-        // 呼吸（反応なし時は必須）
-        { id: "breath", text: "普段どおりの呼吸がありますか？（途切れがちの“あえぎ”はNO）", type: "yesno",
-          requires: (ans) => ans["resp"] === false, onYes: "CALL_STRONGLY", onNo: "CALL_NOW" },
+        // 安全：Yes=危険（問題あり）
+        { id: "unsafe",  text: "周囲は危険ですか？（車道/火/煙/感電/水辺など）", type: "yesno", onYes: "CALL_NOW" },
 
-        // レッドフラグ群
-        { id: "seiz",  text: "けいれんが今も続く、または5分以上/反復していますか？", type: "yesno", onYes: "CALL_NOW" },
-        { id: "befast",text: "顔のゆがみ/片腕が上がらない/話し方がおかしい（いずれか）", type: "yesno", onYes: "CALL_NOW" },
-        { id: "cyan",  text: "一息で話せないほど息苦しい、または口唇が青い", type: "yesno", onYes: "CALL_NOW" },
-        { id: "bleed", text: "圧迫しても止まらない、または噴出する出血がある", type: "yesno", onYes: "CALL_NOW" },
-        { id: "force", text: "高所落下/交通事故/頭部を強く打った等の強い外力があった", type: "yesno", onYes: "CALL_STRONGLY" },
-        { id: "anaph", text: "息苦しさ/声がれ/喉の腫れ＋じんましん/顔の腫れ", type: "yesno", onYes: "CALL_NOW" },
+        // 反応：Yes=反応がない（問題あり）
+        { id: "no_response", text: "呼びかけや肩叩きに反応がないですか？", type: "yesno" },
 
-        // ボーダーライン群
-        { id: "chest10", text: "胸を押さえる/冷汗/嘔気などが10分以上続いている", type: "yesno", onYes: "CALL_STRONGLY" },
-        { id: "lethargy", text: "ぐったり/反応鈍い/いつもと違う（高齢者・小児等）", type: "yesno", onYes: "CALL_STRONGLY" },
-        { id: "headpost", text: "転倒後に頭痛増悪/嘔吐/ぼんやりがある", type: "yesno", onYes: "CALL_STRONGLY" },
+        // 呼吸：Yes=普段どおりの呼吸がない/不明（問題あり）※反応なしのときだけ
+        { id: "no_normal_breath", text: "普段どおりの呼吸がない、または不明ですか？（“あえぎ”はNO）", type: "yesno",
+          requires: (ans) => ans["no_response"] === true, onYes: "CALL_NOW" },
 
-        // リスク増幅（Yesで一段階繰り上げ）
-        { id: "vuln", text: "高齢（65+）/小児/妊娠/重い基礎疾患のいずれかに見える", type: "yesno" },
-        { id: "remote", text: "受診まで1時間以上かかる地域/夜間独居など支援不足", type: "yesno" },
+        // レッドフラグ（Yes=問題あり）
+        { id: "seiz",    text: "けいれんが続いている、または5分以上/反復していますか？", type: "yesno", onYes: "CALL_NOW" },
+        { id: "befast",  text: "顔のゆがみ/片腕が上がらない/話し方がおかしい（いずれか）ですか？", type: "yesno", onYes: "CALL_NOW" },
+        { id: "cyan",    text: "一息で話せないほど息苦しい、または口唇が青いですか？", type: "yesno", onYes: "CALL_NOW" },
+        { id: "bleed",   text: "圧迫しても止まらない、または噴出する出血がありますか？", type: "yesno", onYes: "CALL_NOW" },
+        { id: "force",   text: "高所落下/交通事故/頭部を強く打った等の強い外力がありましたか？", type: "yesno", onYes: "CALL_STRONGLY" },
+        { id: "anaph",   text: "息苦しさ/声がれ/喉の腫れ＋じんましん/顔の腫れがありますか？", type: "yesno", onYes: "CALL_NOW" },
+
+        // ボーダーライン（Yes=問題あり）
+        { id: "chest10",  text: "胸を押さえる/冷汗/嘔気などが10分以上続いていますか？", type: "yesno", onYes: "CALL_STRONGLY" },
+        { id: "lethargy", text: "ぐったり/反応鈍い/いつもと違う様子ですか？（高齢者・小児等）", type: "yesno", onYes: "CALL_STRONGLY" },
+        { id: "headpost", text: "転倒後に頭痛増悪/嘔吐/ぼんやりがありますか？", type: "yesno", onYes: "CALL_STRONGLY" },
+
+        // リスク増幅（Yesで一段階繰上げ）
+        { id: "vuln",   text: "高齢（65+）/小児/妊娠/重い基礎疾患に該当しますか？", type: "yesno" },
+        { id: "remote", text: "受診まで1時間以上かかる/夜間独居など支援が乏しいですか？", type: "yesno" },
       ];
 
       function applyOtherDecision(answers) {
-        // 優先順位ロジック
         const yes = (id) => answers[id] === true;
 
-        // 即通報条件
-        if (answers["safe"] === false) return "CALL_NOW";
-        if (answers["resp"] === false && (answers["breath"] !== true)) return "CALL_NOW";
+        // 即通報
+        if (yes("unsafe")) return "CALL_NOW";
+        if (yes("no_response") && yes("no_normal_breath")) return "CALL_NOW";
         if (yes("seiz") || yes("befast") || yes("cyan") || yes("bleed") || yes("anaph")) return "CALL_NOW";
 
-        // 強く推奨条件
-        if (yes("force") || yes("chest10") || yes("lethargy") || yes("headpost")) {
+        // 強く推奨
+        let strong = (yes("force") || yes("chest10") || yes("lethargy") || yes("headpost"));
+        if (strong) {
           let cat = "CALL_STRONGLY";
-          // リスク増幅（1つで一段階繰り上げ）
           const riskUp = (yes("vuln") ? 1 : 0) + (yes("remote") ? 1 : 0);
           if (riskUp >= 1) cat = "CALL_NOW";
           return cat;
         }
 
-        // ここまで強い所見なし → 同日受診 or 自己ケア
-        const mild = true; // 他者フローでは主観説明が少ないため、基本③寄り
+        // 残り：同日受診 or 自己ケア（他者フローは情報が少ないため③寄り）
         const riskUp = (yes("vuln") ? 1 : 0) + (yes("remote") ? 1 : 0);
-        if (mild) return riskUp >= 1 ? "SAME_DAY" : "SELF_CARE";
-        return "SAME_DAY";
+        return riskUp >= 1 ? "SAME_DAY" : "SELF_CARE";
       }
 
       // ====== メインアプリ ======
@@ -365,8 +357,6 @@
           return () => window.clearTimeout(t);
         }, [timerActive, count]);
 
-        // 位置→未使用（個人情報最小化のため表示も抑制）
-
         // Home（検索ショートカット：自分フローのみ）
         const [query, setQuery] = useState("");
         const onChoosePopular = (kw) => {
@@ -374,29 +364,22 @@
           const k = map[kw];
           if (k) {
             setTimerActive(true); setStartAt(Date.now()); setCount(30);
-            setStep("CATEGORY"); setSelected([k]); setFocus(k); setQuery(kw); setRouteUserType("SELF");
+            setStep("USER_PICK");
+            // 自分を選んだうえでカテゴリに一発で入る
+            setRouteUserType("SELF");
+            setStep("CATEGORY");
+            setSelected([k]); setFocus(k); setQuery(kw);
           }
         };
 
         // タイムアウト・オーバーレイのアクション
-        const goCallNow = () => {
-          setTimeoutOpen(false);
-          setCategory("CALL_NOW");
-          setStep("RESULT");
-          setTimerActive(false);
-        };
+        const goCallNow = () => { setTimeoutOpen(false); setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); };
         const backToQuestions = () => {
           setTimeoutOpen(false);
-          // 現在の進行度に応じて戻す
-          if (routeUserType === "OTHER") {
-            setStep("OTHER_Q");
-            setCount(10);
-            setTimerActive(true);
-            return;
-          }
+          if (routeUserType === "OTHER") { setStep("OTHER_Q"); setCount(10); setTimerActive(true); return; }
           if (!focus) { setStep("CATEGORY"); setCount(30); setTimerActive(true); return; }
           if (step === "RESULT") { setStep("CATEGORY"); setCount(30); setTimerActive(true); return; }
-          setCount(step === "HOME" || step === "CATEGORY" ? 30 : 10);
+          setCount(step === "HOME" || step === "USER_PICK" || step === "CATEGORY" ? 30 : 10);
           setTimerActive(true);
         };
 
@@ -410,26 +393,26 @@
           setCategory(cat); setStep("RESULT"); setTimerActive(false);
         };
 
-        // 他者フロー制御
+        // 他者フロー制御（1問ずつ表示）
         const curOtherQ = OTHER_STEPS[otherIndex] || null;
         const canShowOtherQ = (q) => !q?.requires || q.requires(answersOther);
         const answerOther = (v) => {
           const q = curOtherQ;
           if (!q) return;
-          setAnswersOther((prev) => ({ ...prev, [q.id]: v }));
+          const nextAnswers = { ...answersOther, [q.id]: v };
+          setAnswersOther(nextAnswers);
 
-          // 早期判定（しきい値）
-          if (v === true && q.onYes === "CALL_NOW")  { setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); return; }
-          if (v === true && q.onYes === "CALL_STRONGLY") { setCategory("CALL_STRONGLY"); setStep("RESULT"); setTimerActive(false); return; }
-          if (v === false && q.onNo === "CALL_NOW") { setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); return; }
+          // 早期判定（Yesで即時判定が定義されている場合）
+          if (v === true && q.onYes === "CALL_NOW")       { setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); return; }
+          if (v === true && q.onYes === "CALL_STRONGLY")  { setCategory("CALL_STRONGLY"); setStep("RESULT"); setTimerActive(false); return; }
 
-          // 次へ
+          // 次の表示可能な質問へ（requiresを満たさないものは飛ばす）
           let idx = otherIndex + 1;
-          // 次に表示不要な項目をスキップ
           while (idx < OTHER_STEPS.length && !canShowOtherQ(OTHER_STEPS[idx])) idx++;
+
           if (idx >= OTHER_STEPS.length) {
-            // 全問完了 → 総合判定
-            const cat = applyOtherDecision({ ...answersOther, [q.id]: v });
+            // 全問終了 → 総合判定
+            const cat = applyOtherDecision(nextAnswers);
             setCategory(cat); setStep("RESULT"); setTimerActive(false);
           } else {
             setOtherIndex(idx);
@@ -626,31 +609,51 @@
                   </div>
                 )}
 
-                {/* 他者観察：順次質問 */}
+                {/* 他者観察：1画面1問のみ表示 */}
                 {step === "OTHER_Q" && routeUserType === "OTHER" && (
                   <div className="space-y-6">
                     <div className="text-lg font-bold">他者の観察（目撃者用）</div>
-                    <div className="text-sm text-neutral-600">見てわかる項目だけ答えてください。強い所見は自動で結論に進みます。</div>
-                    {OTHER_STEPS.slice(0, otherIndex).map((q) => (
-                      (q.requires && !q.requires(answersOther)) ? null : (
-                        <div key={q.id} className="opacity-60 pointer-events-none">
-                          <YesNo q={{ text: q.text }} value={answersOther[q.id]} onAnswer={()=>{}} />
-                        </div>
-                      )
-                    ))}
+                    <div className="text-sm text-neutral-600">見てわかる項目だけ答えてください。Yesは「体調に問題あり」です。</div>
+
                     {(() => {
                       const q = OTHER_STEPS[otherIndex];
-                      if (!q) return <div className="text-sm">判定処理中…</div>;
+                      if (!q) return <div className="text-sm">判定中…</div>;
+                      // requires未充足ならスキップ
                       if (q.requires && !q.requires(answersOther)) {
-                        // スキップして次へ
+                        // 非同期スキップ
                         setTimeout(() => {
                           let idx = otherIndex + 1;
                           while (idx < OTHER_STEPS.length && OTHER_STEPS[idx].requires && !OTHER_STEPS[idx].requires(answersOther)) idx++;
-                          setOtherIndex(idx >= OTHER_STEPS.length ? otherIndex : idx);
+                          setOtherIndex(idx);
                         }, 0);
                         return null;
                       }
-                      return <YesNo q={{ text: q.text }} value={answersOther[q.id]} onAnswer={answerOther} />;
+                      return (
+                        <YesNo
+                          q={{ text: q.text }}
+                          value={answersOther[q.id]}
+                          onAnswer={(v) => {
+                            const next = { ...answersOther, [q.id]: v };
+                            setAnswersOther(next);
+
+                            // 即時判定
+                            if (v === true && q.onYes === "CALL_NOW")      { setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); return; }
+                            if (v === true && q.onYes === "CALL_STRONGLY") { setCategory("CALL_STRONGLY"); setStep("RESULT"); setTimerActive(false); return; }
+
+                            // 次の質問へ
+                            let idx = otherIndex + 1;
+                            while (idx < OTHER_STEPS.length && OTHER_STEPS[idx].requires && !OTHER_STEPS[idx].requires(next)) idx++;
+                            if (idx >= OTHER_STEPS.length) {
+                              const cat = applyOtherDecision(next);
+                              setCategory(cat); setStep("RESULT"); setTimerActive(false);
+                            } else {
+                              setOtherIndex(idx);
+                              setCount(10);
+                              setTimerActive(true);
+                            }
+                          }}
+                        />
+                      );
                     })()}
                   </div>
                 )}
