@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>救急要請の再判断アシスト（MVP）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tailwind（CDN） -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 & Babel（CDN） -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <meta name="color-scheme" content="light only" />
+    <style>body { -webkit-font-smoothing: antialiased; }</style>
+  </head>
+  <body class="min-h-screen">
+    <div id="root"></div>
+
+    <!-- Babelプリセットを明示 -->
+    <script type="text/babel" data-presets="env,react">
+      const { useEffect, useMemo, useState } = React;
+
+      // ====== 簡易ルーター（#/ , #/terms , #/privacy） ======
+      function useHashRoute() {
+        const parse = () => (location.hash.replace(/^#/, "") || "/");
+        const [route, setRoute] = useState(parse());
+        useEffect(() => {
+          const onHash = () => setRoute(parse());
+          window.addEventListener("hashchange", onHash);
+          return () => window.removeEventListener("hashchange", onHash);
+        }, []);
+        const navigate = (r) => { location.hash = r; };
+        return [route, navigate];
+      }
+
+      // ====== 公的導線 ======
+      const LINKS = {
+        GUIDE_TOKYO: "https://www.tfd.metro.tokyo.lg.jp/hp-kyuuimuka/guide/main/index.html",
+        ABOUT_7119: "https://www.fdma.go.jp/mission/enrichment/appropriate/appropriate007.html",
+        TOKYO_7119: "https://www.tfd.metro.tokyo.lg.jp/lfe/kyuu_adv/soudan-center.html",
+        TEL_7119_TEXT: "#7119（救急安心センターの案内）",
+      };
+
+      const SHOW_READOUT = false;
+
+      const nowHHMM = () => {
+        const d = new Date();
+        return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      };
+
+      const PRIORITY_ORDER = ["conscious", "stroke", "cardioresp", "trauma", "fever", "skin"];
+
+      const CAT_LABEL = {
+        CALL_NOW: { title: "① いま救急要請が必要な可能性が高い", color: "bg-red-600" },
+        CALL_STRONGLY: { title: "② 救急要請を強く検討", color: "bg-orange-500" },
+        SAME_DAY: { title: "③ 本日中に受診", color: "bg-amber-500" },
+        SELF_CARE: { title: "④ 自己ケア＋再評価", color: "bg-emerald-600" },
+      };
+
+      // ====== UIパーツ ======
+      const SolidBtn = ({ className = "", children, ...rest }) => (
+        <button {...rest} className={"h-14 rounded-2xl font-bold shadow-lg active:scale-[0.99] " + className}>
+          {children}
+        </button>
+      );
+
+      const CircleTimer = ({ seconds, total, colorClass }) => {
+        const r = 26, c = 2 * Math.PI * r;
+        const prog = Math.max(0, Math.min(1, seconds / total));
+        const dash = c * prog;
+        return (
+          <svg viewBox="0 0 64 64" className="w-10 h-10" role="img" aria-label={`安全確認タイマー 残り${seconds}秒`}>
+            <circle cx="32" cy="32" r={r} className="fill-none stroke-neutral-200" strokeWidth="6" />
+            <circle cx="32" cy="32" r={r} className={"fill-none " + (colorClass || "stroke-blue-600")} strokeWidth="6"
+                    strokeDasharray={`${dash} ${c}`} strokeLinecap="round" transform="rotate(-90 32 32)" />
+            <text x="50%" y="52%" textAnchor="middle" className="fill-neutral-800 text-[14px] font-bold">{seconds}</text>
+          </svg>
+        );
+      };
+
+      const HeaderSymptom = ({ s, subtitle }) => (
+        <div className="flex items-center gap-3">
+          <div className="text-3xl" aria-hidden="true">{s.emoji}</div>
+          <div>
+            <div className="text-lg font-bold">{s.label}</div>
+            {subtitle && <div className="text-sm text-neutral-600">{subtitle}</div>}
+          </div>
+        </div>
+      );
+
+      const YesNo = ({ q, value, onAnswer }) => (
+        <div className="space-y-3">
+          <div className="text-lg font-semibold leading-relaxed">{q.text}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <button aria-label="はい（問題あり）"
+                    className={"h-14 rounded-2xl font-bold text-lg shadow " + (value === true ? "bg-red-600 text-white" : "bg-red-50 text-red-700")}
+                    onClick={() => onAnswer(true)}>はい</button>
+            <button aria-label="いいえ（問題なし）"
+                    className={"h-14 rounded-2xl font-bold text-lg shadow " + (value === false ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-900")}
+                    onClick={() => onAnswer(false)}>いいえ</button>
+          </div>
+        </div>
+      );
+
+      const TwoChoice = ({ q, value, onAnswer }) => {
+        const a = (q.choices && q.choices[0]) || "はい";
+        const b = (q.choices && q.choices[1]) || "いいえ";
+        return (
+          <div className="space-y-2">
+            <div className="text-base font-semibold">{q.text}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button aria-label={a} className={"h-12 rounded-xl font-semibold " + (value === a ? "bg-blue-600 text-white" : "bg-neutral-100")} onClick={() => onAnswer(a)}>{a}</button>
+              <button aria-label={b} className={"h-12 rounded-xl font-semibold " + (value === b ? "bg-blue-600 text-white" : "bg-neutral-100")} onClick={() => onAnswer(b)}>{b}</button>
+            </div>
+          </div>
+        );
+      };
+
+      const Question = ({ q, value, onAnswer }) => {
+        if (q.type === "twochoice" && q.choices) return <TwoChoice q={q} value={value} onAnswer={onAnswer} />;
+        return <YesNo q={{ ...q, type: "yesno" }} value={value} onAnswer={onAnswer} />;
+      };
+
+      // ====== タイムアウト・オーバーレイ ======
+      function TimeoutOverlay({ onCallNow, onBackToQuestions }) {
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="タイムアウトのお知らせ">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+              <div className="rounded-xl p-4 text-white bg-red-600">
+                <div className="text-lg font-extrabold">安全確認タイマーが0秒になりました</div>
+                <p className="text-sm opacity-90 mt-1">
+                  迷う場合は<strong>安全側</strong>に倒してください。<br/>
+                  <strong>緊急に要請する必要があります。</strong>（症状の悪化や持続が疑われます）
+                </p>
+              </div>
+              <div className="space-y-2 text-sm text-neutral-700">
+                <p>次のいずれかを選択してください。</p>
+                <ul className="list-disc pl-5">
+                  <li>直ちに「救急要請を強く検討」へ進む</li>
+                  <li>もう一度、状態記入の質問に戻って見直す</li>
+                </ul>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button onClick={onCallNow} className="h-12 rounded-xl bg-red-600 text-white font-bold">緊急に要請を強く検討する</button>
+                <button onClick={onBackToQuestions} className="h-12 rounded-xl bg-neutral-800 text-white font-bold">状態記入の質問に戻る</button>
+              </div>
+              <div className="text-xs text-neutral-600">
+                ※ 判断に迷う場合は <a className="underline" href={LINKS.ABOUT_7119} target="_blank" rel="noopener noreferrer">#7119（救急安心センター）</a> へ相談可能です。
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const ResultBlock = ({
+        category, focusSymptom, onset, address, entry, age65plus,
+        setOnset, setAddress, setEntry, setAge65plus, consultLinks
+      }) => {
+        const meta = CAT_LABEL[category];
+        const advice = (() => {
+          switch (category) {
+            case "CALL_NOW":       return { reason: "重大な可能性があります。至急、救急要請を検討してください。", caveat: "判断に迷う場合は#7119で相談可。" };
+            case "CALL_STRONGLY":  return { reason: "重い病気や悪化の兆候が複数あります。救急要請の検討を強くおすすめします。", caveat: "躊躇する場合も安全側に。変化があれば直ちに上位へ。" };
+            case "SAME_DAY":       return { reason: "緊急性は高くない可能性があります。本日中の受診をおすすめします。", caveat: "悪化・持続（10→20分）・新症状で救急要請を再検討。" };
+            case "SELF_CARE":      return { reason: "自己ケアで経過観察可能な見込みです。", caveat: "不安や悪化時は同日受診→救急要請の順で繰り上げ。" };
+            default:               return { reason: "", caveat: "" };
+          }
+        })();
+
+        return (
+          <div className="space-y-6">
+            <div className={"rounded-2xl p-4 text-white " + meta.color}>
+              <div className="text-lg font-extrabold">{meta.title}</div>
+              <div className="text-sm opacity-90 mt-1">{advice.reason}</div>
+            </div>
+
+            <div className="rounded-xl border p-3 text-xs leading-relaxed bg-amber-50">
+              <strong>免責：</strong>本サイトは救急要請の「再判断」を支援する一般情報です。診断・治療の指示は行いません。迷ったら #7119 等の公的窓口を利用してください。
+            </div>
+
+            {(category === "CALL_NOW" || category === "CALL_STRONGLY") && (
+              <p className="text-sm text-neutral-700">
+                119通報時は、オペレーターから住所・発症時刻・入口情報・内服/アレルギー等を順に聞かれます。会話の中で落ち着いてお答えください。
+              </p>
+            )}
+
+            {consultLinks && (
+              <div className="rounded-xl border p-3 space-y-2">
+                <div className="font-semibold text-sm">自力受診・相談の公的導線</div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <a className="h-12 grid place-items-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm font-semibold"
+                     href={LINKS.GUIDE_TOKYO} target="_blank" rel="noopener noreferrer" aria-label="東京版 救急受診ガイドを開く">
+                    東京版 救急受診ガイド
+                  </a>
+                  <a className="h-12 grid place-items-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm font-semibold"
+                     href={LINKS.ABOUT_7119} target="_blank" rel="noopener noreferrer" aria-label="#7119（救急安心センター）制度解説を開く">
+                    {LINKS.TEL_7119_TEXT}
+                  </a>
+                  <a className="h-12 grid place-items-center rounded-xl bg-neutral-100 hover:bg-neutral-200 text-sm font-semibold"
+                     href={LINKS.TOKYO_7119} target="_blank" rel="noopener noreferrer" aria-label="東京消防庁 救急相談センターを開く">
+                    東京消防庁 #7119（電話で相談）
+                  </a>
+                </div>
+                <div className="text-xs text-neutral-600">※ 地域で窓口が異なる場合あり。お住まいの自治体案内に合わせてください。</div>
+              </div>
+            )}
+
+            {!SHOW_READOUT && (
+              <div className="rounded-xl border p-3 text-xs text-neutral-600">
+                <div className="font-semibold mb-1">注記</div>
+                <div>{advice.caveat}</div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // ====== 症状定義 ======
+      const SYMPTOMS = [
+        {
+          key: "conscious",
+          label: "意識がおかしい/けいれん",
+          emoji: "🧠",
+          priority: 1,
+          redFlag: { id: "co_rf", text: "呼びかけに反応しない、または けいれんが5分以上続く/反復していますか？", type: "yesno" },
+          borderline: [{ id: "co_head", text: "頭部外傷（転倒等）があり、その後に悪化/嘔吐/行動異常がありますか？", type: "yesno" }],
+          risk: [{ id: "co_anticoag", text: "抗凝固/抗血小板薬を服用していますか？", type: "yesno" }],
+          decide: (a, rYes) => (a["co_rf"] ? "CALL_NOW" : (a["co_head"] || rYes > 0) ? "CALL_STRONGLY" : "SAME_DAY"),
+        },
+        {
+          key: "stroke",
+          label: "片麻痺/ろれつがおかしい",
+          emoji: "🫥",
+          priority: 2,
+          redFlag: { id: "s_rf", text: "顔のゆがみ/片腕の脱力/言葉の障害（いずれか）がありますか？（BE-FAST）", type: "yesno" },
+          borderline: [
+            { id: "s_bal", text: "ふらつき・歩行不能・バランスが取れない？", type: "yesno" },
+            { id: "s_vis", text: "視野が欠ける/二重に見える/片目が見えにくい？", type: "yesno" },
+          ],
+          risk: [{ id: "s_time", text: "発症から4.5時間以内の可能性がある", type: "yesno" }],
+          decide: (a, rYes) => (a["s_rf"] ? "CALL_NOW" : (a["s_bal"] || a["s_vis"]) ? (rYes > 0 ? "CALL_STRONGLY" : "SAME_DAY") : "SAME_DAY"),
+        },
+        {
+          key: "cardioresp",
+          label: "胸の痛み/息苦しさ",
+          emoji: "❤️‍🔥",
+          priority: 3,
+          redFlag: { id: "cr_rf", text: "圧迫/締め付け胸痛が10分以上、または 一息で話せない/口唇が青い（チアノーゼ）ですか？", type: "yesno" },
+          borderline: [
+            { id: "cr_rad", text: "顎/肩/背中/腕に痛みが広がる（放散痛）？", type: "yesno" },
+            { id: "cr_aut", text: "冷汗/吐き気がある？", type: "yesno" },
+            { id: "cr_wheeze", text: "ぜいぜいが強い/吸入で改善が乏しい？", type: "yesno" },
+          ],
+          risk: [{ id: "cr_risk", text: "心肺疾患の既往・糖尿病・高齢など（2項目以上）", type: "yesno" }],
+          decide: (a, rYes, minutes) => {
+            if (a["cr_rf"]) return "CALL_NOW";
+            if (a["cr_rad"] || a["cr_aut"] || a["cr_wheeze"] || rYes > 0) return "CALL_STRONGLY";
+            return minutes >= 20 ? "CALL_STRONGLY" : "SAME_DAY";
+          },
+        },
+        {
+          key: "trauma",
+          label: "外傷/出血",
+          emoji: "🩸",
+          priority: 4,
+          redFlag: { id: "t_rf", text: "圧迫しても止まらない出血、または 高所落下/交通事故など強い外力がありましたか？", type: "yesno" },
+          borderline: [
+            { id: "t_headhit", text: "頭を打ちましたか？（転倒・頭部打撲）", type: "yesno" },
+            { id: "t_symp", text: "その後に嘔吐/頭痛増悪/ぼんやり/行動の変化がありますか？", type: "yesno" },
+          ],
+          risk: [
+            { id: "t_anticoag", text: "抗凝固/抗血小板薬を服用している", type: "yesno" },
+            { id: "t_age65", text: "年齢が65歳以上である", type: "yesno" },
+          ],
+          decide: (a, rYes, _min, age65plus) => {
+            if (a["t_rf"]) return "CALL_NOW";
+            if (a["t_headhit"] && (a["t_symp"] || rYes > 0 || age65plus)) return "CALL_STRONGLY";
+            return "SAME_DAY";
+          },
+        },
+        {
+          key: "fever",
+          label: "発熱＋ぐったり/脱水",
+          emoji: "🌡️",
+          priority: 5,
+          redFlag: { id: "f_rf", text: "強い眠気/混乱、または 呼吸が速い/息苦しいですか？", type: "yesno" },
+          borderline: [
+            { id: "f_poor", text: "水分がほとんど取れない/尿が極端に少ない？", type: "yesno" },
+            { id: "f_persist", text: "高熱が続く/悪化している？", type: "yesno" },
+          ],
+          risk: [{ id: "f_risk", text: "高齢/妊娠/免疫抑制/透析などの危険因子", type: "yesno" }],
+          decide: (a, rYes) => (a["f_rf"] || rYes > 0 ? "CALL_STRONGLY" : (a["f_poor"] || a["f_persist"]) ? "SAME_DAY" : "SELF_CARE"),
+        },
+        {
+          key: "skin",
+          label: "皮膚・アレルギー/虫刺され",
+          emoji: "🦟",
+          priority: 6,
+          redFlag: { id: "sk_rf", text: "息苦しさ/声がれ/喉の腫れ、意識がもうろう・冷汗・脈が弱い、口/喉/目の刺傷、同時に多数ヶ所を刺された", type: "yesno" },
+          borderline: [
+            { id: "sk_spread",  text: "刺傷後〜数時間で腫れが急速に広がっている", type: "yesno" },
+            { id: "sk_history", text: "過去にハチ等で重い反応を起こしたことがある", type: "yesno" },
+            { id: "sk_sizepain", text: "腫れが3cm以上に広がる、または強い痛みがある", type: "yesno" },
+            { id: "sk_tick",    text: "マダニが皮膚に食い込んで離れない（自力で抜かない）", type: "yesno" }
+          ],
+          risk: [
+            { id: "sk_vuln",   text: "小児/高齢/妊娠/呼吸器疾患/重いアレルギー歴がある", type: "yesno" },
+            { id: "sk_remote", text: "受診まで1時間以上かかる地域", type: "yesno" }
+          ],
+          decide: (a, rYes) => {
+            if (a["sk_rf"]) return "CALL_NOW";
+            if (a["sk_spread"] || a["sk_history"] || (rYes > 0 && (a["sk_spread"] || a["sk_sizepain"]))) return "CALL_STRONGLY";
+            if (a["sk_tick"]) return "SAME_DAY";
+            if (!a["sk_spread"] && !a["sk_sizepain"] && !a["sk_tick"]) return "SELF_CARE";
+            return "SAME_DAY";
+          }
+        },
+      ];
+
+      // ====== メインアプリ ======
+      function MainApp() {
+        const [step, setStep] = useState("HOME");
+        const [timerActive, setTimerActive] = useState(false);
+        const [count, setCount] = useState(30);
+
+        const [selected, setSelected] = useState([]);
+        const [focus, setFocus] = useState(null);
+        const [answers, setAnswers] = useState({});
+        const [category, setCategory] = useState(null);
+
+        // タイムアウト時の強制画面表示フラグ
+        const [timeoutOpen, setTimeoutOpen] = useState(false);
+
+        // 読み上げUIを使わないが、型維持のため残す
+        const [onset, setOnset] = useState(nowHHMM());
+        const [address, setAddress] = useState("");
+        const [entry, setEntry] = useState("");
+        const [age65plus, setAge65plus] = useState(false);
+
+        const [startAt, setStartAt] = useState(null);
+        const minutesPersisted = useMemo(() => (!startAt ? 0 : Math.max(0, Math.round((Date.now() - startAt) / 60000))), [startAt, step]);
+
+        // タイマー：0でオーバーレイを強制表示
+        useEffect(() => {
+          if (!timerActive) return;
+          if (count <= 0) {
+            setTimerActive(false);
+            setTimeoutOpen(true); // オーバーレイ表示
+            return;
+          }
+          const t = window.setTimeout(() => setCount((s) => s - 1), 1000);
+          return () => window.clearTimeout(t);
+        }, [timerActive, count]);
+
+        const focusSymptom = useMemo(() => (focus ? SYMPTOMS.find((s) => s.key === focus) || null : null), [focus]);
+
+        // Home（検索ショートカット）
+        const [query, setQuery] = useState("");
+        const onChoosePopular = (kw) => {
+          const map = { "虫に刺された": "skin", "発熱": "fever", "外傷/出血": "trauma" };
+          const k = map[kw];
+          if (k) {
+            setTimerActive(true); setStartAt(Date.now()); setCount(30);
+            setStep("CATEGORY"); setSelected([k]); setFocus(k); setQuery(kw);
+          }
+        };
+
+        const proceedFromCategory = () => { if (!focus) return; setStep("RED"); setCount(10); setTimerActive(true); };
+        const setAns = (id, v) => setAnswers((prev) => ({ ...prev, [id]: v }));
+        const currentQs = useMemo(() => (!focusSymptom ? { red: null, border: [], risk: [] } : { red: focusSymptom.redFlag, border: focusSymptom.borderline, risk: focusSymptom.risk }), [focusSymptom]);
+
+        const evaluate = () => {
+          if (!focusSymptom) return;
+          const riskYes = focusSymptom.risk.reduce((acc, q) => (answers[q.id] ? acc + 1 : acc), 0);
+          const cat = focusSymptom.decide(answers, riskYes, minutesPersisted, age65plus);
+          setCategory(cat); setStep("RESULT"); setTimerActive(false);
+        };
+
+        // タイムアウト・オーバーレイのアクション
+        const goCallNow = () => {
+          setTimeoutOpen(false);
+          setCategory("CALL_NOW");
+          setStep("RESULT");
+          setTimerActive(false);
+        };
+        const backToQuestions = () => {
+          setTimeoutOpen(false);
+          // 現在の進行度に応じて戻す
+          if (step === "HOME") {
+            setStep("CATEGORY");
+          } else if (step === "RESULT") {
+            setStep("CATEGORY");
+          } else {
+            // RED/BORDER/RISK いずれでも質問継続に戻す
+            setStep(focus ? step : "CATEGORY");
+          }
+          // タイマー再開（HOME相当：30秒、その他：10秒）
+          setCount(step === "HOME" || step === "CATEGORY" ? 30 : 10);
+          setTimerActive(true);
+        };
+
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-sky-50 p-4 md:p-8">
+            <div className="mx-auto max-w-3xl">
+              <header className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-neutral-800">救急要請の再判断アシスト（MVP）</h1>
+                <span className="inline-flex px-3 py-1 rounded-full bg-black/80 text-white text-xs">迷ったら #7119</span>
+              </header>
+
+              <div className="rounded-3xl shadow-xl bg-white/80 backdrop-blur border border-white/60 p-4 md:p-6 relative">
+                {/* タイムアウト・オーバーレイ */}
+                {timeoutOpen && <TimeoutOverlay onCallNow={goCallNow} onBackToQuestions={backToQuestions} />}
+
+                {/* タイマー（明示開始のみ） */}
+                <div className="flex items-center justify-between mb-4 gap-3">
+                  <div className="flex items-center gap-3">
+                    <CircleTimer seconds={timerActive ? count : 0} total={step === "HOME" || step === "CATEGORY" ? 30 : 10} colorClass={timerActive ? undefined : "stroke-neutral-300"} />
+                    <div className="text-sm text-neutral-600">
+                      {!timerActive
+                        ? <div>「通報するか迷っている」を押すと安全確認タイマーが開始します（自動発信はしません）。</div>
+                        : <div>安全確認タイマー作動中。0になった場合は<strong>緊急の案内画面</strong>が表示されます。</div>}
+                    </div>
+                  </div>
+                  <a className="h-12 grid place-items-center rounded-xl px-3 bg-neutral-100 text-sm font-semibold"
+                     href={LINKS.ABOUT_7119} target="_blank" rel="noopener noreferrer" aria-label="#7119（救急安心センターの案内）を開く">
+                    {LINKS.TEL_7119_TEXT}
+                  </a>
+                </div>
+
+                {/* ステップ */}
+                {step === "HOME" && (
+                  <div className="space-y-6">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <SolidBtn className="bg-neutral-900 text-white" aria-label="通報するか迷っている（フロー開始）"
+                        onClick={() => { setTimerActive(true); setStartAt(Date.now()); setCount(30); setStep("CATEGORY"); }}>
+                        A. 通報するか迷っている
+                      </SolidBtn>
+                      <SolidBtn className="bg-red-600 text-white" aria-label="明らかに緊急（すぐに結論画面へ）"
+                        onClick={() => { setTimerActive(false); setStep("RESULT"); setCategory("CALL_NOW"); setFocus(null); }}>
+                        B. 明らかに緊急（要請を強く検討）
+                      </SolidBtn>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold">クイック検索</div>
+                      <input aria-label="クイック検索入力" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="例：虫に刺された／発熱／外傷…" className="h-12 w-full rounded-xl border px-3" />
+                      <div className="flex gap-2">
+                        {["虫に刺された", "発熱", "外傷/出血"].map((p) => (
+                          <button key={p} className="px-3 h-8 rounded-full text-sm bg-neutral-100 hover:bg-neutral-200" aria-label={`クイック選択：${p}`} onClick={() => onChoosePopular(p)}>{p}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {step === "CATEGORY" && (
+                  <div className="space-y-4">
+                    <div className="text-sm text-neutral-600">最も近い項目を選択（複数可）。優先度は自動で決まります。</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {SYMPTOMS.map((s) => {
+                        const active = selected.includes(s.key);
+                        return (
+                          <button
+                            key={s.key}
+                            aria-label={`症状カテゴリを選択：${s.label}`}
+                            className={"h-16 rounded-2xl border grid place-items-center text-lg font-semibold shadow-sm " + (active ? "border-blue-500 bg-blue-50" : "border-neutral-200 bg-neutral-50 hover:bg-white")}
+                            onClick={() => {
+                              setSelected((prev) => {
+                                const next = prev.includes(s.key) ? prev.filter((x) => x !== s.key) : [...prev, s.key];
+                                const nextFocus = PRIORITY_ORDER.find((k) => next.includes(k)) || next[0] || null;
+                                setFocus(nextFocus || null);
+                                return next;
+                              });
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl" aria-hidden="true">{s.emoji}</span>
+                              <span>{s.label}</span>
+                              {focus === s.key && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">優先</span>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-end">
+                      <button className="h-12 px-6 rounded-xl bg-blue-600 text-white font-bold disabled:opacity-50"
+                        aria-label="次へ（レッドフラグ）" disabled={!focus} onClick={proceedFromCategory}>
+                        次へ（レッドフラグ）
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === "RED" && focusSymptom && currentQs.red && (
+                  <div className="space-y-6">
+                    <HeaderSymptom s={focusSymptom} subtitle="レッドフラグ（1問/はいで要請を強く検討）" />
+                    <YesNo q={currentQs.red} value={answers[currentQs.red.id]} onAnswer={(v) => {
+                      setAnswers((prev) => ({ ...prev, [currentQs.red.id]: v }));
+                      if (v === true) { setCategory("CALL_NOW"); setStep("RESULT"); setTimerActive(false); }
+                      else { setStep(currentQs.border.length ? "BORDER" : currentQs.risk.length ? "RISK" : "RESULT"); setCount(10); setTimerActive(true); }
+                    }} />
+                  </div>
+                )}
+
+                {step === "BORDER" && focusSymptom && (
+                  <div className="space-y-6">
+                    <HeaderSymptom s={focusSymptom} subtitle="ボーダーライン確認（最大4問）" />
+                    <div className="grid gap-4">
+                      {focusSymptom.borderline.map((q) => (
+                        <Question key={q.id} q={q} value={answers[q.id]} onAnswer={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))} />
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <button className="h-12 px-6 rounded-xl bg-blue-600 text-white font-bold" aria-label="次へ（危険因子または判定へ）"
+                        onClick={() => { setStep(focusSymptom.risk.length ? "RISK" : "RESULT"); setCount(10); setTimerActive(true); }}>
+                        次へ
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === "RISK" && focusSymptom && (
+                  <div className="space-y-6">
+                    <HeaderSymptom s={focusSymptom} subtitle="危険因子（0〜2問。該当で一段階繰り上げ）" />
+                    <div className="grid gap-4">
+                      {focusSymptom.risk.map((q) => (
+                        <Question key={q.id} q={q} value={answers[q.id]} onAnswer={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))} />
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <button className="h-12 px-6 rounded-xl bg-blue-600 text-white font-bold" aria-label="判定" onClick={evaluate}>
+                        判定
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === "RESULT" && (
+                  <ResultBlock
+                    category={category ?? "CALL_NOW"}
+                    focusSymptom={focusSymptom}
+                    onset={onset}
+                    address={address}
+                    entry={entry}
+                    age65plus={age65plus}
+                    setOnset={setOnset}
+                    setAddress={setAddress}
+                    setEntry={setEntry}
+                    setAge65plus={setAge65plus}
+                    consultLinks={category === "SAME_DAY" || category === "SELF_CARE"}
+                  />
+                )}
+              </div>
+
+              <footer className="text-xs text-neutral-600 mt-4 leading-relaxed space-y-2">
+                <div>
+                  本サイトは救急要請の「再判断」を支援する一般情報です。診断・治療の指示は行いません。迷ったら #7119 等の公的窓口を利用してください。
+                </div>
+                <div className="flex items-center gap-3">
+                  <a href="#/terms" className="underline hover:no-underline" aria-label="利用規約を開く">利用規約</a>
+                  <a href="#/privacy" className="underline hover:no-underline" aria-label="プライバシーポリシーを開く">プライバシーポリシー</a>
+                </div>
+              </footer>
+            </div>
+
+            {/* 背景装飾 */}
+            <div className="pointer-events-none fixed inset-0 -z-10 opacity-60" aria-hidden="true">
+              <div className="absolute -top-24 -left-24 w-80 h-80 bg-rose-200 blur-3xl rounded-full"></div>
+              <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-sky-200 blur-3xl rounded-full"></div>
+            </div>
+          </div>
+        );
+      }
+
+      // ====== 利用規約ビュー ======
+      function TermsView() {
+        return (
+          <main className="min-h-screen bg-white p-6 md:p-10">
+            <div className="mx-auto max-w-3xl">
+              <header className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl md:text-3xl font-extrabold">利用規約</h1>
+                <a href="#/" className="text-sm underline">← トップへ戻る</a>
+              </header>
+              <article className="prose max-w-none">
+                <p>本サービスは、救急要請の「再判断」を支援する一般情報を提供するものであり、診断・治療の指示は行いません。最終的な行動決定はご利用者の責任で行ってください。迷った場合は #7119 等の公的窓口をご利用ください。</p>
+                <h2>免責</h2>
+                <p>本サービスの情報の正確性・有用性について保証するものではありません。ご利用により生じたいかなる損害に対しても、当方は法令で認められる範囲で責任を負いません。</p>
+                <h2>提供情報の性質</h2>
+                <p>本サービスは公的ガイドラインに基づく一般的な情報を提示するもので、個別の医療判断を代替するものではありません。</p>
+                <h2>禁止事項</h2>
+                <ul className="list-disc pl-5">
+                  <li>本サービスを医療判断の代替として使用すること</li>
+                  <li>本サービスの無断改変・再配布</li>
+                </ul>
+                <h2>規約の変更</h2>
+                <p>必要に応じて本規約を変更する場合があります。変更後の規約は、本ページに掲載した時点から効力を生じます。</p>
+              </article>
+            </div>
+          </main>
+        );
+      }
+
+      // ====== プライバシーポリシービュー ======
+      function PrivacyView() {
+        return (
+          <main className="min-h-screen bg-white p-6 md:p-10">
+            <div className="mx-auto max-w-3xl">
+              <header className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl md:text-3xl font-extrabold">プライバシーポリシー</h1>
+                <a href="#/" className="text-sm underline">← トップへ戻る</a>
+              </header>
+              <article className="prose max-w-none">
+                <h2>基本方針</h2>
+                <p>本サービスは、利用者の個人情報（氏名、住所、連絡先、症状等）をサーバに保存しません。位置情報は端末内で表示のみに用い、サーバ送信を行いません。</p>
+                <h2>アクセス解析等の外部送信</h2>
+                <p>現時点で第三者への外部送信は行っていません。将来、解析ツールを導入する場合は、送信先・送信項目・目的を本ページに明記し、必要な同意を取得します。</p>
+                <h2>ログの取り扱い</h2>
+                <p>品質改善のため匿名の操作ログを収集する場合は、取得項目・保存期間・利用目的を明記し、オプトインの同意を得ます。</p>
+                <h2>お問い合わせ</h2>
+                <p>ご質問は運営者連絡先までご連絡ください。</p>
+              </article>
+            </div>
+          </main>
+        );
+      }
+
+      // ====== ルートコンテナ ======
+      function Root() {
+        const [route] = useHashRoute();
+        if (route.indexOf("/terms") === 0) return <TermsView />;
+        if (route.indexOf("/privacy") === 0) return <PrivacyView />;
+        return <MainApp />;
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
+    </script>
+  </body>
+</html>
