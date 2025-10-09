@@ -68,12 +68,12 @@
       const CircleTimer = ({ seconds, total, colorClass }) => {
         const r = 26, c = 2 * Math.PI * r;
         const prog = Math.max(0, Math.min(1, seconds / total));
-        const dash = c * prog;
+        theDash = c * prog;
         return (
           <svg viewBox="0 0 64 64" className="w-10 h-10" role="img" aria-label={`安全確認タイマー 残り${seconds}秒`}>
             <circle cx="32" cy="32" r={r} className="fill-none stroke-neutral-200" strokeWidth="6" />
             <circle cx="32" cy="32" r={r} className={"fill-none " + (colorClass || "stroke-blue-600")} strokeWidth="6"
-                    strokeDasharray={`${dash} ${c}`} strokeLinecap="round" transform="rotate(-90 32 32)" />
+                    strokeDasharray={`${theDash} ${c}`} strokeLinecap="round" transform="rotate(-90 32 32)" />
             <text x="50%" y="52%" textAnchor="middle" className="fill-neutral-800 text-[14px] font-bold">{seconds}</text>
           </svg>
         );
@@ -535,7 +535,7 @@
                       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={age65} onChange={(e)=>setAge65(e.target.checked)} />該当者は65歳以上</label>
                       <div className="flex gap-2">
                         <SolidBtn className="btn-ghost" onClick={()=>{ setMode("PICK"); setCount(30); setTimerActive(true); }}>一つ前へ</SolidBtn>
-                        <!-- ここを「次へ（最初の確認）」→「次へ」に変更し、横長化 -->
+                        {/* 修正：表記を「次へ」に統一、横長ボタン */}
                         <SolidBtn className="btn-primary btn-next disabled:opacity-50" disabled={!selfFocus}
                           onClick={()=>{ setMode("SELF_RED"); setCount(10); setTimerActive(true); }}>次へ</SolidBtn>
                       </div>
@@ -640,7 +640,7 @@
                     </div>
                     <div className="flex justify-between">
                       <SolidBtn className="btn-ghost" onClick={()=>{ setMode("PICK"); setCount(30); setTimerActive(true); }}>一つ前へ</SolidBtn>
-                      <!-- ここも「次へ（最初の確認）」→「次へ」に変更し、横長化 -->
+                      {/* 修正：表記を「次へ」に統一、横長ボタン */}
                       <SolidBtn className="btn-primary btn-next disabled:opacity-50" disabled={!otherFocus}
                         onClick={()=>{ setMode("OTHER_RED"); setCount(10); setTimerActive(true); }}>次へ</SolidBtn>
                     </div>
@@ -650,7 +650,7 @@
                 {/* 他者：RED */}
                 {mode === "OTHER_RED" && otherFocusCfg && (
                   <div className="space-y-6">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items中心 gap-3">
                       <div className="text-3xl" aria-hidden="true">{otherFocusCfg.emoji}</div>
                       <div>
                         <div className="text-lg font-bold">{otherFocusCfg.label}</div>
