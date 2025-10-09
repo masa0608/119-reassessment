@@ -25,6 +25,8 @@
   .btn-ghost{background:#f3f4f6;color:#111827}
   .btn-danger{background:var(--red);color:#fff}
   .btn-next{width:100%}@media(min-width:768px){.btn-next{width:18rem}}
+  /* PICK 画面だけ太字を弱める */
+  .btn-lite{font-weight:600}
   .grid2{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
   .tile{height:64px;border:1px solid var(--border);border-radius:16px;background:#fafafa;display:grid;place-items:center;font-weight:700}
   .tile.active{border-color:var(--blue);background:#e8f0ff}
@@ -44,6 +46,10 @@
   .hidden{display:none!important}
   .mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}
   .spacey>*+*{margin-top:12px}
+  /* はい/いいえの選択状態（視覚的に残す） */
+  .yn-yes-active{background:var(--red);color:#fff}
+  .yn-no-active{background:#111827;color:#fff}
+  .yn-inactive{background:#f3f4f6;color:#111827}
 </style>
 </head>
 <body>
@@ -82,12 +88,12 @@
         </div>
       </div>
 
-      <!-- 画面：PICK 自分/他者 -->
+      <!-- 画面：PICK 自分/他者（←ここだけ太字を弱めた） -->
       <div id="view-pick" class="spacey hidden">
         <div class="muted">対象を選んでください。</div>
         <div class="grid2">
-          <button class="btn btn-ghost" id="btn-self">自分の症状について</button>
-          <button class="btn btn-ghost" id="btn-other">他者を見つけた／様子がおかしい人がいる</button>
+          <button class="btn btn-ghost btn-lite" id="btn-self">自分の症状について</button>
+          <button class="btn btn-ghost btn-lite" id="btn-other">他者を見つけた／様子がおかしい人がいる</button>
         </div>
       </div>
 
@@ -113,8 +119,8 @@
         <div class="spacey">
           <div class="q-title" id="self-qtext"></div>
           <div class="row">
-            <button class="btn btn-danger" id="self-yes">はい</button>
-            <button class="btn btn-dark" id="self-no">いいえ</button>
+            <button class="btn yn-inactive" id="self-yes">はい</button>
+            <button class="btn yn-inactive" id="self-no">いいえ</button>
           </div>
           <div class="muted" style="font-size:12px">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
@@ -146,8 +152,8 @@
         <div class="spacey">
           <div class="q-title" id="other-qtext"></div>
           <div class="row">
-            <button class="btn btn-danger" id="other-yes">はい</button>
-            <button class="btn btn-dark" id="other-no">いいえ</button>
+            <button class="btn yn-inactive" id="other-yes">はい</button>
+            <button class="btn yn-inactive" id="other-no">いいえ</button>
           </div>
           <div class="muted" style="font-size:12px">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
@@ -363,6 +369,22 @@ function currentSymptom(){
   const list=getList();
   return list.find(s=>s.key===focusKey);
 }
+
+function updateYNStyles(side){
+  const cfg=currentSymptom(); if(!cfg) return;
+  const prefix = (side==='SELF'?'self':'other');
+  let v;
+  if(step==='RED'){ v = answers[cfg.red.id]; }
+  else{
+    const qset = step==='BORDER' ? cfg.border : cfg.risk;
+    v = answers[qset[idx]?.id];
+  }
+  const yesBtn = $('#'+prefix+'-yes');
+  const noBtn  = $('#'+prefix+'-no');
+  yesBtn.className = 'btn ' + (v===true  ? 'yn-yes-active' : 'yn-inactive');
+  noBtn.className  = 'btn ' + (v===false ? 'yn-no-active'  : 'yn-inactive');
+}
+
 function buildQuestion(side){
   const cfg=currentSymptom();
   $('#'+(side==='SELF'?'self':'other')+'-emoji').textContent=cfg.emoji;
@@ -377,7 +399,7 @@ function buildQuestion(side){
   const q = (step==='RED') ? cfg.red : qset[idx];
   $('#'+(side==='SELF'?'self':'other')+'-qtext').textContent=q.text;
 
-  // 次へ有効化ロジックはボタン押下時に
+  updateYNStyles(side);
 }
 
 function buildResult(){
@@ -425,16 +447,11 @@ document.getElementById('to-top').onclick=()=>{ route='HOME'; setTimer(false,0);
 
 /* オーバーレイ */
 document.getElementById('ov-call').onclick=()=>{ document.getElementById('overlay').style.display='none'; route='RESULT'; resultCat='CALL_NOW'; render(); };
-document.getElementById('ov-back').onclick=()=>{ document.getElementById('overlay').style.display='none'; // 直前の画面へ
-  if(who==='SELF'){
-    if(route==='SELF_Q'){ /* stay */ } else { route='SELF_Q'; }
-  }else{
-    if(route==='OTHER_Q'){ /* stay */ } else { route='OTHER_Q'; }
-  }
+document.getElementById('ov-back').onclick=()=>{ document.getElementById('overlay').style.display='none';
   setTimer(true,10); render();
 };
 
-/* 質問回答処理 */
+/* 質問回答処理（選択状態の見た目を保持） */
 function handleAnswer(val, side){
   const cfg=currentSymptom();
   if(step==='RED'){ answers[cfg.red.id]=val; }
@@ -442,6 +459,7 @@ function handleAnswer(val, side){
     const qset = step==='BORDER' ? cfg.border : cfg.risk;
     answers[qset[idx].id]=val;
   }
+  updateYNStyles(side);
 }
 
 function goNext(side){
@@ -471,7 +489,6 @@ function goNext(side){
 }
 
 function goBack(side){
-  const cfg=currentSymptom();
   if(step==='RED'){ route = (side==='SELF'?'SELF_CAT':'OTHER_CAT'); setTimer(true,30); render(); return; }
   if(step==='BORDER'){
     if(idx>0){ idx--; setTimer(true,10); render(); return; }
