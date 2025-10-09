@@ -31,7 +31,7 @@
   .tile{height:64px;border:1px solid var(--border);border-radius:16px;background:#fafafa;display:grid;place-items:center;font-weight:700}
   .tile.active{border-color:var(--blue);background:#e8f0ff}
   .chip{padding:2px 8px;border-radius:999px;background:var(--blue);color:#fff;font-size:12px;margin-left:8px}
-  .q-title{font-size:18px;font-weight:700;line-height:1.5}
+  .q-title{font-size:18px;font-weight:700;line-height:1.5;text-align:center}
   .result{color:#fff;border-radius:16px;padding:12px 14px;font-weight:800}
   .bg-now{background:var(--red)} .bg-strong{background:var(--orange)}
   .bg-day{background:var(--amber)} .bg-self{background:var(--green)}
@@ -47,9 +47,12 @@
   .mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}
   .spacey>*+*{margin-top:12px}
   /* はい/いいえの選択状態（視覚的に残す） */
+  .yn-row{justify-content:center}              /* ← 中央寄せ */
+  .yn-big{height:72px;min-width:12rem;font-size:20px;border-radius:16px} /* ← 大きく */
   .yn-yes-active{background:var(--red);color:#fff}
   .yn-no-active{background:#111827;color:#fff}
   .yn-inactive{background:#f3f4f6;color:#111827}
+  .subtitle-center{text-align:center;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -88,7 +91,7 @@
         </div>
       </div>
 
-      <!-- 画面：PICK 自分/他者（←ここだけ太字を弱めた） -->
+      <!-- 画面：PICK 自分/他者（太字弱め） -->
       <div id="view-pick" class="spacey hidden">
         <div class="muted">対象を選んでください。</div>
         <div class="grid2">
@@ -109,20 +112,20 @@
 
       <!-- 画面：レッド/ボーダー/リスク（自分） -->
       <div id="view-self-q" class="spacey hidden">
-        <div class="row" style="align-items:center">
+        <div class="row" style="align-items:center;justify-content:center;gap:8px">
           <div id="self-emoji" style="font-size:28px">❓</div>
           <div>
-            <div id="self-label" style="font-weight:800"></div>
-            <div class="muted" id="self-subtitle"></div>
+            <div id="self-label" style="font-weight:800;text-align:center"></div>
+            <div class="subtitle-center" id="self-subtitle"></div>
           </div>
         </div>
         <div class="spacey">
           <div class="q-title" id="self-qtext"></div>
-          <div class="row">
-            <button class="btn yn-inactive" id="self-yes">はい</button>
-            <button class="btn yn-inactive" id="self-no">いいえ</button>
+          <div class="row yn-row">
+            <button class="btn yn-inactive yn-big" id="self-yes">はい</button>
+            <button class="btn yn-inactive yn-big" id="self-no">いいえ</button>
           </div>
-          <div class="muted" style="font-size:12px">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
+          <div class="muted" style="font-size:12px;text-align:center">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
         <div class="row" style="justify-content:space-between">
           <button class="btn btn-ghost" id="self-back">一つ前へ</button>
@@ -142,20 +145,20 @@
 
       <!-- 画面：レッド/ボーダー/リスク（他者） -->
       <div id="view-other-q" class="spacey hidden">
-        <div class="row" style="align-items:center">
+        <div class="row" style="align-items:center;justify-content:center;gap:8px">
           <div id="other-emoji" style="font-size:28px">❓</div>
           <div>
-            <div id="other-label" style="font-weight:800"></div>
-            <div class="muted" id="other-subtitle"></div>
+            <div id="other-label" style="font-weight:800;text-align:center"></div>
+            <div class="subtitle-center" id="other-subtitle"></div>
           </div>
         </div>
         <div class="spacey">
           <div class="q-title" id="other-qtext"></div>
-          <div class="row">
-            <button class="btn yn-inactive" id="other-yes">はい</button>
-            <button class="btn yn-inactive" id="other-no">いいえ</button>
+          <div class="row yn-row">
+            <button class="btn yn-inactive yn-big" id="other-yes">はい</button>
+            <button class="btn yn-inactive yn-big" id="other-no">いいえ</button>
           </div>
-          <div class="muted" style="font-size:12px">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
+          <div class="muted" style="font-size:12px;text-align:center">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
         <div class="row" style="justify-content:space-between">
           <button class="btn btn-ghost" id="other-back">一つ前へ</button>
@@ -331,7 +334,6 @@ function minutesPersisted(){ if(!startAt) return 0; return Math.max(0, Math.roun
 
 /* ========= 画面描画 ========= */
 function render(){
-  // すべて隠す
   ['#view-home','#view-pick','#view-self-cat','#view-self-q','#view-other-cat','#view-other-q','#view-result']
     .forEach(id=>show(id,false));
   if(route==='HOME'){ show('#view-home',true); return; }
@@ -365,10 +367,7 @@ function buildTiles(containerSel, data){
   }
 }
 
-function currentSymptom(){
-  const list=getList();
-  return list.find(s=>s.key===focusKey);
-}
+function currentSymptom(){ return getList().find(s=>s.key===focusKey); }
 
 function updateYNStyles(side){
   const cfg=currentSymptom(); if(!cfg) return;
@@ -381,8 +380,8 @@ function updateYNStyles(side){
   }
   const yesBtn = $('#'+prefix+'-yes');
   const noBtn  = $('#'+prefix+'-no');
-  yesBtn.className = 'btn ' + (v===true  ? 'yn-yes-active' : 'yn-inactive');
-  noBtn.className  = 'btn ' + (v===false ? 'yn-no-active'  : 'yn-inactive');
+  yesBtn.className = 'btn yn-big ' + (v===true  ? 'yn-yes-active' : 'yn-inactive');
+  noBtn.className  = 'btn yn-big ' + (v===false ? 'yn-no-active'  : 'yn-inactive');
 }
 
 function buildQuestion(side){
@@ -447,9 +446,7 @@ document.getElementById('to-top').onclick=()=>{ route='HOME'; setTimer(false,0);
 
 /* オーバーレイ */
 document.getElementById('ov-call').onclick=()=>{ document.getElementById('overlay').style.display='none'; route='RESULT'; resultCat='CALL_NOW'; render(); };
-document.getElementById('ov-back').onclick=()=>{ document.getElementById('overlay').style.display='none';
-  setTimer(true,10); render();
-};
+document.getElementById('ov-back').onclick=()=>{ document.getElementById('overlay').style.display='none'; setTimer(true,10); render(); };
 
 /* 質問回答処理（選択状態の見た目を保持） */
 function handleAnswer(val, side){
