@@ -2,8 +2,61 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>救急要請の再判断アシスト（オフライン版）</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- ===================== 基本SEO ===================== -->
+<title>救急要請の再判断ツール｜迷ったら#7119・本日受診・自己ケアの目安</title>
+<meta name="description" content="救急車を呼ぶべきか迷ったときのための再判断ツール。研究・ガイドラインを参考に、119（強く検討）／本日受診／自己ケアの目安を日本語で簡単提示。#7119や公的ガイドへの導線つき。">
+<link rel="canonical" href="https://USERNAME.github.io/REPO/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+
+<!-- ===================== OGP / Twitter ===================== -->
+<meta property="og:site_name" content="救急要請の再判断ツール">
+<meta property="og:title" content="救急要請の再判断ツール｜迷ったら#7119・本日受診・自己ケアの目安">
+<meta property="og:description" content="救急車を呼ぶべきか迷ったときのための再判断ツール（一般情報）。119・強く検討・本日受診・自己ケアの目安を簡単に判定。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://USERNAME.github.io/REPO/">
+<meta property="og:image" content="https://USERNAME.github.io/REPO/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- ===================== PWAライト/外観 ===================== -->
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="favicon.png">
+
+<!-- ===================== 構造化データ（JSON-LD） ===================== -->
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"WebApplication",
+  "name":"救急要請の再判断ツール",
+  "url":"https://USERNAME.github.io/REPO/",
+  "applicationCategory":"HealthApplication",
+  "operatingSystem":"Web",
+  "inLanguage":"ja",
+  "description":"救急車を呼ぶべきか迷った時の再判断支援ツール（一般情報）。119・強く検討・本日受診・自己ケアの目安を表示。",
+  "provider":{
+    "@type":"Organization",
+    "name":"YOUR NAME / ORG",
+    "url":"https://USERNAME.github.io/REPO/"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"WebSite",
+  "name":"救急要請の再判断ツール",
+  "url":"https://USERNAME.github.io/REPO/",
+  "inLanguage":"ja",
+  "potentialAction":{
+    "@type":"SearchAction",
+    "target":"https://USERNAME.github.io/REPO/?q={query}",
+    "query-input":"required name=query"
+  }
+}
+</script>
+
 <style>
   :root{
     --bg1:#fff; --bg2:#f9fbff; --ink:#111; --muted:#666;
@@ -12,7 +65,8 @@
   }
   html,body{margin:0;padding:0;background:linear-gradient(135deg,#fff4f5,#f5fbff);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans JP','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;}
   .container{max-width:960px;margin:0 auto;padding:16px 16px 80px;}
-  h1{font-size:22px;font-weight:800;margin:8px 0 12px}
+  h1{font-size:24px;font-weight:900;margin:8px 0 12px}
+  .lead{color:#333;margin-top:4px}
   .badge{display:inline-flex;align-items:center;gap:6px;background:#000c;color:#fff;border-radius:999px;padding:6px 10px;font-size:12px}
   .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
   .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -25,13 +79,13 @@
   .btn-ghost{background:#f3f4f6;color:#111827}
   .btn-danger{background:var(--red);color:#fff}
   .btn-next{width:100%}@media(min-width:768px){.btn-next{width:18rem}}
-  /* PICK 画面だけ太字を弱める */
   .btn-lite{font-weight:600}
   .grid2{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
   .tile{height:64px;border:1px solid var(--border);border-radius:16px;background:#fafafa;display:grid;place-items:center;font-weight:700}
   .tile.active{border-color:var(--blue);background:#e8f0ff}
   .chip{padding:2px 8px;border-radius:999px;background:var(--blue);color:#fff;font-size:12px;margin-left:8px}
-  .q-title{font-size:18px;font-weight:700;line-height:1.5;text-align:center}
+  .q-title{font-size:18px;font-weight:800;line-height:1.5;text-align:center}
+  .subtitle-center{text-align:center;color:var(--muted)}
   .result{color:#fff;border-radius:16px;padding:12px 14px;font-weight:800}
   .bg-now{background:var(--red)} .bg-strong{background:var(--orange)}
   .bg-day{background:var(--amber)} .bg-self{background:var(--green)}
@@ -46,74 +100,76 @@
   .hidden{display:none!important}
   .mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}
   .spacey>*+*{margin-top:12px}
-  /* はい/いいえの選択状態（視覚的に残す） */
-  .yn-row{justify-content:center}              /* ← 中央寄せ */
-  .yn-big{height:72px;min-width:12rem;font-size:20px;border-radius:16px} /* ← 大きく */
+  .yn-row{justify-content:center}
+  .yn-big{height:72px;min-width:12rem;font-size:20px;border-radius:16px}
   .yn-yes-active{background:var(--red);color:#fff}
   .yn-no-active{background:#111827;color:#fff}
   .yn-inactive{background:#f3f4f6;color:#111827}
-  .subtitle-center{text-align:center;color:var(--muted)}
 </style>
 </head>
 <body>
   <div class="container">
     <header class="row" style="justify-content:space-between">
-      <h1>救急要請の再判断アシスト（MVP）</h1>
-      <span class="badge">迷ったら #7119</span>
+      <div>
+        <h1>救急要請の再判断ツール（迷ったら#7119へ）</h1>
+        <p class="lead" aria-label="このサイトの説明">
+          救急車を呼ぶべきか迷ったときに、<strong>一般情報</strong>として再判断を支援します。診断・治療の指示は行いません。
+        </p>
+      </div>
+      <span class="badge" aria-label="迷ったらシャープ7119へ">迷ったら #7119</span>
     </header>
 
-    <div class="card spacey" id="app">
-
+    <main class="card spacey" id="app">
       <!-- タイマー行 -->
-      <div class="row">
+      <section class="row" aria-label="安全確認タイマー行">
         <div class="row grow" style="align-items:center">
-          <div class="timer">
-            <div class="circle"><div class="num" id="timerNum">0</div></div>
+          <div class="timer" aria-live="polite">
+            <div class="circle" aria-hidden="true"><div class="num" id="timerNum">0</div></div>
           </div>
           <div class="muted" id="timerText">「通報するか迷っている」を押すと安全確認タイマーが開始します（自動発信はしません）。</div>
         </div>
-        <a class="btn btn-ghost" target="_blank" rel="noopener" href="https://www.fdma.go.jp/mission/enrichment/appropriate/appropriate007.html">#7119（案内）</a>
-      </div>
+        <a class="btn btn-ghost" target="_blank" rel="noopener" href="https://www.fdma.go.jp/mission/enrichment/appropriate/appropriate007.html" aria-label="救急安心センター#7119の案内ページ">#7119（案内）</a>
+      </section>
 
-      <!-- 画面：HOME -->
-      <div id="view-home" class="spacey">
+      <!-- HOME -->
+      <section id="view-home" class="spacey" aria-label="ホーム">
         <div class="grid2">
-          <button class="btn btn-dark" id="btn-start">A. 通報するか迷っている</button>
-          <button class="btn btn-danger" id="btn-panic">B. 明らかに緊急（要請を強く検討）</button>
+          <button class="btn btn-dark" id="btn-start" aria-label="通報するか迷っているフローを始める">A. 通報するか迷っている</button>
+          <button class="btn btn-danger" id="btn-panic" aria-label="明らかに緊急のときの案内へ進む">B. 明らかに緊急（要請を強く検討）</button>
         </div>
         <div>
           <div class="muted mb8">クイック検索（自分の症状向け）</div>
           <div class="row">
-            <button class="btn btn-ghost" data-quick="skin">虫に刺された</button>
-            <button class="btn btn-ghost" data-quick="fever">発熱</button>
-            <button class="btn btn-ghost" data-quick="trauma">外傷/出血</button>
+            <button class="btn btn-ghost" data-quick="skin" aria-label="虫に刺されたで始める">虫に刺された</button>
+            <button class="btn btn-ghost" data-quick="fever" aria-label="発熱で始める">発熱</button>
+            <button class="btn btn-ghost" data-quick="trauma" aria-label="外傷・出血で始める">外傷/出血</button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：PICK 自分/他者（太字弱め） -->
-      <div id="view-pick" class="spacey hidden">
+      <!-- PICK 自分/他者 -->
+      <section id="view-pick" class="spacey hidden" aria-label="対象の選択">
         <div class="muted">対象を選んでください。</div>
         <div class="grid2">
-          <button class="btn btn-ghost btn-lite" id="btn-self">自分の症状について</button>
-          <button class="btn btn-ghost btn-lite" id="btn-other">他者を見つけた／様子がおかしい人がいる</button>
+          <button class="btn btn-ghost btn-lite" id="btn-self" aria-label="自分の症状について">自分の症状について</button>
+          <button class="btn btn-ghost btn-lite" id="btn-other" aria-label="他者の様子がおかしい場合">他者を見つけた／様子がおかしい人がいる</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：カテゴリ（自分） -->
-      <div id="view-self-cat" class="spacey hidden">
+      <!-- カテゴリ（自分） -->
+      <section id="view-self-cat" class="spacey hidden" aria-label="自分の症状カテゴリー選択">
         <div class="muted">最も近い項目を選択（複数可）。優先度は自動で決まります。</div>
         <div id="self-tiles" class="grid2"></div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="back-self-cat">一つ前へ</button>
           <button class="btn btn-primary btn-next" id="next-self-cat" disabled>次へ</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：レッド/ボーダー/リスク（自分） -->
-      <div id="view-self-q" class="spacey hidden">
+      <!-- 質問（自分） -->
+      <section id="view-self-q" class="spacey hidden" aria-label="自分の質問">
         <div class="row" style="align-items:center;justify-content:center;gap:8px">
-          <div id="self-emoji" style="font-size:28px">❓</div>
+          <div id="self-emoji" style="font-size:28px" aria-hidden="true">❓</div>
           <div>
             <div id="self-label" style="font-weight:800;text-align:center"></div>
             <div class="subtitle-center" id="self-subtitle"></div>
@@ -121,9 +177,9 @@
         </div>
         <div class="spacey">
           <div class="q-title" id="self-qtext"></div>
-          <div class="row yn-row">
-            <button class="btn yn-inactive yn-big" id="self-yes">はい</button>
-            <button class="btn yn-inactive yn-big" id="self-no">いいえ</button>
+          <div class="row yn-row" role="group" aria-label="はい・いいえの選択">
+            <button class="btn yn-inactive yn-big" id="self-yes" aria-label="はいを選択">はい</button>
+            <button class="btn yn-inactive yn-big" id="self-no" aria-label="いいえを選択">いいえ</button>
           </div>
           <div class="muted" style="font-size:12px;text-align:center">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
@@ -131,22 +187,22 @@
           <button class="btn btn-ghost" id="self-back">一つ前へ</button>
           <button class="btn btn-primary btn-next" id="self-next">次へ</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：カテゴリ（他者） -->
-      <div id="view-other-cat" class="spacey hidden">
+      <!-- カテゴリ（他者） -->
+      <section id="view-other-cat" class="spacey hidden" aria-label="他者の状態カテゴリー選択">
         <div class="muted">見てわかる状態を選択（複数可）。優先度は自動で決まります。</div>
         <div id="other-tiles" class="grid2"></div>
         <div class="row" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="back-other-cat">一つ前へ</button>
           <button class="btn btn-primary btn-next" id="next-other-cat" disabled>次へ</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：レッド/ボーダー/リスク（他者） -->
-      <div id="view-other-q" class="spacey hidden">
+      <!-- 質問（他者） -->
+      <section id="view-other-q" class="spacey hidden" aria-label="他者の質問">
         <div class="row" style="align-items:center;justify-content:center;gap:8px">
-          <div id="other-emoji" style="font-size:28px">❓</div>
+          <div id="other-emoji" style="font-size:28px" aria-hidden="true">❓</div>
           <div>
             <div id="other-label" style="font-weight:800;text-align:center"></div>
             <div class="subtitle-center" id="other-subtitle"></div>
@@ -154,9 +210,9 @@
         </div>
         <div class="spacey">
           <div class="q-title" id="other-qtext"></div>
-          <div class="row yn-row">
-            <button class="btn yn-inactive yn-big" id="other-yes">はい</button>
-            <button class="btn yn-inactive yn-big" id="other-no">いいえ</button>
+          <div class="row yn-row" role="group" aria-label="はい・いいえの選択">
+            <button class="btn yn-inactive yn-big" id="other-yes" aria-label="はいを選択">はい</button>
+            <button class="btn yn-inactive yn-big" id="other-no" aria-label="いいえを選択">いいえ</button>
           </div>
           <div class="muted" style="font-size:12px;text-align:center">※ 「はい」は体調に問題がある／心配な状態を示します。</div>
         </div>
@@ -164,15 +220,15 @@
           <button class="btn btn-ghost" id="other-back">一つ前へ</button>
           <button class="btn btn-primary btn-next" id="other-next">次へ</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 画面：結果 -->
-      <div id="view-result" class="spacey hidden">
+      <!-- 結果 -->
+      <section id="view-result" class="spacey hidden" aria-label="判定結果">
         <div id="result-box" class="result">判定</div>
-        <div class="help">
+        <div class="help" aria-label="免責の説明">
           <b>免責：</b>本サイトは救急要請の「再判断」を支援する一般情報です。診断・治療の指示は行いません。迷ったら #7119 等の公的窓口を利用してください。
         </div>
-        <div id="consult" class="spacey">
+        <div id="consult" class="spacey" aria-label="公的案内へのリンク">
           <div class="muted">自力受診・相談の公的導線</div>
           <div class="row">
             <a class="btn btn-ghost" target="_blank" rel="noopener" href="https://www.tfd.metro.tokyo.lg.jp/hp-kyuuimuka/guide/main/index.html">東京版 救急受診ガイド</a>
@@ -183,18 +239,23 @@
         <div class="row" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="to-top">トップへ戻る</button>
         </div>
+      </section>
+    </main>
+
+    <footer aria-label="フッター">
+      <p>
+        本サイトは救急要請の「再判断」を支援する一般情報です。診断・治療の指示は行いません。迷ったら #7119 等の公的窓口を利用してください。<br>
+        運営：YOUR NAME / ORG ｜ 連絡先：contact@example.com ｜ 最終更新：2025-10-09
+      </p>
+      <div class="row mt8">
+        <a class="link" href="#terms" id="link-terms">利用規約</a>
+        <a class="link" href="#privacy" id="link-privacy">プライバシーポリシー</a>
       </div>
-
-    </div>
-
-    <footer>
-      本サイトは救急要請の「再判断」を支援する一般情報です。診断・治療の指示は行いません。迷ったら #7119 等の公的窓口を利用してください。
-      <div class="row mt8"><a class="link" href="#terms" id="link-terms">利用規約</a><a class="link" href="#privacy" id="link-privacy">プライバシーポリシー</a></div>
     </footer>
   </div>
 
   <!-- タイムアウト・オーバーレイ -->
-  <div class="overlay" id="overlay">
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="安全確認タイムアウト">
     <div class="inner spacey">
       <div class="result bg-now">安全確認タイマーが0秒になりました</div>
       <div>迷う場合は<strong>安全側</strong>に倒してください。<br>症状が続く/悪化の可能性があります。<strong>緊急に要請を強く検討してください。</strong></div>
@@ -295,19 +356,13 @@ const CAT_LABEL = {
   SELF_CARE:{title:"④ 自己ケア＋再評価", color:"bg-self", reason:"自己ケアで経過観察可能な見込みです。"}
 };
 
-/* ========= 状態 ========= */
-let route="HOME";            // HOME, PICK, SELF_CAT, SELF_Q, OTHER_CAT, OTHER_Q, RESULT
-let who="SELF";              // SELF or OTHER
+/* ========= 状態とユーティリティ ========= */
+let route="HOME", who="SELF";
 let timerActive=false, timerMax=30, timerCount=0, timerId=null;
-let startAt=null;            // 経過分判定用
-let selections=new Set();    // 選択カテゴリ
-let focusKey=null;           // 現在の主カテゴリ
-let step="RED";              // RED, BORDER, RISK
-let idx=0;                   // 質問インデックス
-let answers={};              // 回答マップ
-let resultCat="CALL_NOW";
+let startAt=null;
+let selections=new Set(); let focusKey=null;
+let step="RED"; let idx=0; let answers={}; let resultCat="CALL_NOW";
 
-/* ========= ユーティリティ ========= */
 const $=sel=>document.querySelector(sel);
 const show=(id,flag)=>{ const el=$(id); if(!el)return; el.classList.toggle('hidden', !flag); };
 function setTimer(active,max){
@@ -321,15 +376,10 @@ function setTimer(active,max){
     if(timerCount<=0){ clearInterval(timerId); timerActive=false; $('#overlay').style.display='flex'; }
   },1000);
 }
-function resetFlow(){
-  selections.clear(); focusKey=null; step="RED"; idx=0; answers={};
-}
+function resetFlow(){ selections.clear(); focusKey=null; step="RED"; idx=0; answers={}; }
 function getList(){ return who==="SELF"?SELF:OTHER; }
 function getPriority(){ return who==="SELF"?PRIORITY_SELF:PRIORITY_OTHER; }
-function pickFocus(){
-  for(const k of getPriority()){ if(selections.has(k)){ focusKey=k; return; } }
-  focusKey=[...selections][0]||null;
-}
+function pickFocus(){ for(const k of getPriority()){ if(selections.has(k)){ focusKey=k; return; } } focusKey=[...selections][0]||null; }
 function minutesPersisted(){ if(!startAt) return 0; return Math.max(0, Math.round((Date.now()-startAt)/60000)); }
 
 /* ========= 画面描画 ========= */
@@ -338,37 +388,24 @@ function render(){
     .forEach(id=>show(id,false));
   if(route==='HOME'){ show('#view-home',true); return; }
   if(route==='PICK'){ show('#view-pick',true); return; }
-  if(route==='SELF_CAT'){
-    buildTiles('#self-tiles', SELF);
-    $('#next-self-cat').disabled=!focusKey;
-    show('#view-self-cat',true); return;
-  }
+  if(route==='SELF_CAT'){ buildTiles('#self-tiles', SELF); $('#next-self-cat').disabled=!focusKey; show('#view-self-cat',true); return; }
   if(route==='SELF_Q'){ buildQuestion('SELF'); show('#view-self-q',true); return; }
-  if(route==='OTHER_CAT'){
-    buildTiles('#other-tiles', OTHER);
-    $('#next-other-cat').disabled=!focusKey;
-    show('#view-other-cat',true); return;
-  }
+  if(route==='OTHER_CAT'){ buildTiles('#other-tiles', OTHER); $('#next-other-cat').disabled=!focusKey; show('#view-other-cat',true); return; }
   if(route==='OTHER_Q'){ buildQuestion('OTHER'); show('#view-other-q',true); return; }
   if(route==='RESULT'){ buildResult(); show('#view-result',true); return; }
 }
-
 function buildTiles(containerSel, data){
   const el=$(containerSel); el.innerHTML='';
   for(const s of data){
     const btn=document.createElement('button');
     btn.className='tile'+(selections.has(s.key)?' active':'');
+    btn.setAttribute('aria-pressed', selections.has(s.key)?'true':'false');
     btn.innerHTML=`<span style="font-size:20px;margin-right:8px">${s.emoji}</span>${s.label}`+(focusKey===s.key?`<span class="chip">優先</span>`:'');
-    btn.onclick=()=>{
-      if(selections.has(s.key)) selections.delete(s.key); else selections.add(s.key);
-      pickFocus(); render();
-    };
+    btn.onclick=()=>{ if(selections.has(s.key)) selections.delete(s.key); else selections.add(s.key); pickFocus(); render(); };
     el.appendChild(btn);
   }
 }
-
 function currentSymptom(){ return getList().find(s=>s.key===focusKey); }
-
 function updateYNStyles(side){
   const cfg=currentSymptom(); if(!cfg) return;
   const prefix = (side==='SELF'?'self':'other');
@@ -383,24 +420,19 @@ function updateYNStyles(side){
   yesBtn.className = 'btn yn-big ' + (v===true  ? 'yn-yes-active' : 'yn-inactive');
   noBtn.className  = 'btn yn-big ' + (v===false ? 'yn-no-active'  : 'yn-inactive');
 }
-
 function buildQuestion(side){
   const cfg=currentSymptom();
   $('#'+(side==='SELF'?'self':'other')+'-emoji').textContent=cfg.emoji;
   $('#'+(side==='SELF'?'self':'other')+'-label').textContent=cfg.label;
-
   const qset = step==='RED' ? [cfg.red] : step==='BORDER' ? cfg.border : cfg.risk;
   const subtitle = step==='RED' ? 'まず最初に確認（「はい」は問題あり）'
                   : step==='BORDER' ? `もう少し確認（${idx+1}/${qset.length}）`
                   : `気をつける条件の確認（${idx+1}/${qset.length}）`;
   $('#'+(side==='SELF'?'self':'other')+'-subtitle').textContent=subtitle;
-
   const q = (step==='RED') ? cfg.red : qset[idx];
   $('#'+(side==='SELF'?'self':'other')+'-qtext').textContent=q.text;
-
   updateYNStyles(side);
 }
-
 function buildResult(){
   const meta=CAT_LABEL[resultCat];
   const box=$('#result-box');
@@ -409,14 +441,11 @@ function buildResult(){
   $('#consult').style.display = (resultCat==='SAME_DAY' || resultCat==='SELF_CARE') ? 'block':'none';
 }
 
-/* ========= 初期イベント ========= */
+/* ========= イベント ========= */
 document.getElementById('btn-start').onclick=()=>{ route='PICK'; setTimer(true,30); startAt=Date.now(); render(); };
 document.getElementById('btn-panic').onclick=()=>{ route='RESULT'; resultCat='CALL_NOW'; setTimer(false,0); render(); };
 document.querySelectorAll('[data-quick]').forEach(b=>{
-  b.onclick=()=>{
-    who='SELF'; resetFlow(); selections.add(b.dataset.quick); pickFocus();
-    route='SELF_CAT'; setTimer(true,30); startAt=Date.now(); render();
-  };
+  b.onclick=()=>{ who='SELF'; resetFlow(); selections.add(b.dataset.quick); pickFocus(); route='SELF_CAT'; setTimer(true,30); startAt=Date.now(); render(); };
 });
 document.getElementById('btn-self').onclick=()=>{ who='SELF'; resetFlow(); route='SELF_CAT'; setTimer(true,30); render(); };
 document.getElementById('btn-other').onclick=()=>{ who='OTHER'; resetFlow(); route='OTHER_CAT'; setTimer(true,30); render(); };
@@ -444,11 +473,11 @@ document.getElementById('other-next').onclick=()=>{ goNext('OTHER'); };
 /* 結果 */
 document.getElementById('to-top').onclick=()=>{ route='HOME'; setTimer(false,0); render(); };
 
-/* オーバーレイ */
+/* タイムアウト・オーバーレイ */
 document.getElementById('ov-call').onclick=()=>{ document.getElementById('overlay').style.display='none'; route='RESULT'; resultCat='CALL_NOW'; render(); };
 document.getElementById('ov-back').onclick=()=>{ document.getElementById('overlay').style.display='none'; setTimer(true,10); render(); };
 
-/* 質問回答処理（選択状態の見た目を保持） */
+/* 回答処理 */
 function handleAnswer(val, side){
   const cfg=currentSymptom();
   if(step==='RED'){ answers[cfg.red.id]=val; }
@@ -458,7 +487,6 @@ function handleAnswer(val, side){
   }
   updateYNStyles(side);
 }
-
 function goNext(side){
   const cfg=currentSymptom();
   const mins = minutesPersisted();
@@ -484,7 +512,6 @@ function goNext(side){
     route='RESULT'; setTimer(false,0); render(); return;
   }
 }
-
 function goBack(side){
   if(step==='RED'){ route = (side==='SELF'?'SELF_CAT':'OTHER_CAT'); setTimer(true,30); render(); return; }
   if(step==='BORDER'){
@@ -497,9 +524,9 @@ function goBack(side){
   }
 }
 
-/* 利用規約/プライバシーの簡易遷移（同一ページ） */
-document.getElementById('link-terms').onclick=(e)=>{ e.preventDefault(); alert("【利用規約】\n本サービスは救急要請の『再判断』を支援する一般情報です。診断・治療の指示は行いません。ご利用により生じた損害について、法令で認められる範囲で責任を負いません。"); };
-document.getElementById('link-privacy').onclick=(e)=>{ e.preventDefault(); alert("【プライバシーポリシー】\n個人情報をサーバ保存しません。アクセス解析も現時点で行いません。今後導入時は同意を得ます。"); };
+/* 規約/プライバシー：同一ページの簡易表示（本番は別ページでもOK） */
+document.getElementById('link-terms').onclick=(e)=>{ e.preventDefault(); alert("【利用規約】\n本サービスは救急要請の『再判断』を支援する一般情報です。診断・治療の指示は行いません。法令で認められる範囲で、当方は損害に対し責任を負いません。"); };
+document.getElementById('link-privacy').onclick=(e)=>{ e.preventDefault(); alert("【プライバシーポリシー】\n個人情報はサーバ保存しません。アクセス解析は現時点で実施しません。今後導入時は明示し、同意を得ます。"); };
 
 /* 初期表示 */
 render();
